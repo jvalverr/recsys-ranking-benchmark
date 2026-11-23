@@ -1,0 +1,31 @@
+# Recommender Systems: From Retrieval to Learning-to-Rank
+# Target environment: Python 3.11+
+# These are compatible lower bounds for the initial implementation, NOT a lockfile.
+
+# Data preparation, numerical computing, sparse matrices, and Parquet
+numpy>=1.26,<3.0
+pandas>=2.2,<4.0
+scipy>=1.11,<2.0
+pyarrow>=16.0
+
+# ML baselines and learning-to-rank
+scikit-learn>=1.5,<2.0
+lightgbm>=4.3,<5.0
+xgboost>=2.1,<4.0
+
+# Reproducible experiments and reporting
+PyYAML>=6.0
+joblib>=1.4
+tqdm>=4.66
+matplotlib>=3.8
+seaborn>=0.13
+
+# SQL-style EDA on event logs and Parquet files
+duckdb>=1.1,<2.0
+
+# Quality assurance (kept in the initial environment until dev deps are split)
+pytest>=8.0
+ruff>=0.9
+
+# FastAPI/Streamlit/MLflow are intentionally excluded until those
+# components exist. Avoid including dependencies for unimplemented features.

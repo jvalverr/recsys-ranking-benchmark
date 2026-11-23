@@ -171,28 +171,43 @@ Evaluation will account for duplicate recommendations, empty histories, unavaila
 - Feature-importance and ablation analyses; documented data and evaluation limitations.
 - A saved inference pipeline and a small demonstration API after benchmark validation.
 
+
+
+
 ## ◆ Step by step
 
-The steps below are the **intended reproducible user journey**. Steps 1–2 can be performed now. Steps 3–7 describe the **planned CLI contract** and will become executable as the implementation is added.
+The following steps describe the reproducible workflow for preparing, evaluating, and benchmarking recommendation models across the three datasets.
 
-### Step 1 — Create the Python environment · available now
+**Implementation status:** Steps 1–3 have been implemented and tested. They cover environment setup, dataset acquisition, standardized data loading, validation, and Parquet export. Steps 4–7 will introduce preprocessing, temporal splitting, retrieval, learning-to-rank, and experimental evaluation as development progresses.
 
-**Requirements:** Python 3.11+ and a local machine with sufficient memory for the selected dataset. MovieLens 1M is the recommended starting point.
+### Step 1 — Create the Python environment · implemented and tested
+
+**Requirements:** Python 3.11+ and sufficient local memory for processing the selected datasets.
+
+Researchers configure an isolated Python environment and install the dependencies required for data processing, machine learning, statistical evaluation, and experiment reproducibility.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+python -m pip install -e . --no-deps
 ```
 
-On Windows, activate the environment using `.venv\Scripts\activate` instead.
+On Windows, researchers activate the environment using `.venv\Scripts\activate`.
 
-> **macOS note:** LightGBM may require the OpenMP runtime (`brew install libomp`). This is a platform dependency, not an extra Python package.
+The editable installation exposes the `recsys` package to command-line scripts, tests, and notebooks without requiring repeated installation after source-code modifications.
 
-### Step 2 — Obtain the datasets · available now
+> **macOS note:** LightGBM may require the OpenMP runtime (`brew install libomp`). This system dependency is separate from Python package installation.
 
-Download the data from their **original publishers** and place the extracted source files under the following paths:
+**Verification:** The initial implementation has been executed successfully on macOS using Python 3.12.9.
+
+### Step 2 — Obtain and organize the datasets · implemented and verified
+
+Researchers obtain the three datasets from the original sources listed in the [Datasets](#datasets) section and organize the extracted files under `data/raw/`.
+
+The project uses the following directory structure:
 
 ```text
 data/
@@ -200,29 +215,197 @@ data/
     ├── movielens-1m/
     │   └── ml-1m/
     │       ├── ratings.dat
-    │       └── movies.dat
+    │       ├── movies.dat
+    │       └── users.dat
+    │
     ├── retailrocket/
     │   ├── events.csv
-    │   ├── item_properties_part1.csv      # optional metadata extension
-    │   ├── item_properties_part2.csv      # optional metadata extension
-    │   └── category_tree.csv              # optional metadata extension
+    │   ├── category_tree.csv
+    │   ├── item_properties_part1.csv
+    │   └── item_properties_part2.csv
+    │
     └── amazon-video-games/
-        ├── Video_Games.csv                # 5-core rating-only data
-        └── meta_Video_Games.jsonl.gz      # optional raw metadata
+        ├── Video_Games.csv
+        └── meta_Video_Games.jsonl.gz
 ```
 
-**Sources:** [MovieLens 1M](https://grouplens.org/datasets/movielens/1m/) · [RetailRocket](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset) · [Amazon Reviews '23: 5-core](https://amazon-reviews-2023.github.io/data_processing/5core.html) and [item metadata](https://amazon-reviews-2023.github.io/main.html).
+The dataset adapters recognize the original file formats and preserve their distinct characteristics:
 
-File names and paths will be validated by dataset adapters. For Amazon, keep the original rating-only file and optional metadata files distinct; do not combine them manually. 
+- **MovieLens 1M:** They load explicit ratings, movie attributes, and user metadata from the original `::`-separated files.
+- **RetailRocket:** They preserve views, cart additions, and transactions as distinct behavioral events. They also retain access to category information and time-dependent item-property snapshots.
+- **Amazon Video Games:** They detect the review schema, preserve explicit ratings, and identify the product key used for metadata association. For the Amazon Reviews 2023 format, they use `parent_asin` as the product-level identifier.
 
-### Step 3 — Validate and prepare a dataset · planned
+The loaders convert timestamps to UTC, standardize the essential interaction fields, and retain original source attributes for subsequent analysis.
+
+They do not remove repeated interactions, convert ratings into relevance labels, or perform temporal metadata joins during ingestion.
+
+**Data management:** Original datasets remain unchanged and are excluded from Git version control. Generated datasets are stored separately under `data/processed/`.
+
+> **Amazon dataset note:** The loader successfully identifies the 2023 review schema. However, this identification does not independently confirm whether the source file belongs to the 5-core subset. Researchers should verify dataset provenance separately.
+
+### Step 3 — Validate and prepare the datasets · implemented and tested
+
+The preparation pipeline provides dataset-specific loaders, standardized event representations, schema validation, descriptive statistics, and reproducible Parquet exports.
+
+Researchers execute the pipeline through `scripts.prepare_data`.
+
+#### 3.1 — Preliminary validation
+
+Researchers initially validate a limited number of records to verify source compatibility and detect potential schema or timestamp problems.
+
+**MovieLens 1M**
 
 ```bash
-python -m recsys.cli validate --dataset movielens-1m
-python -m recsys.cli prepare  --dataset movielens-1m
+python -m scripts.prepare_data \
+  --dataset movielens-1m \
+  --max-rows 10000 \
+  --validate-only
 ```
 
-Target outputs: validated schema, chronological statistics, train/validation/test manifests, and processed Parquet datasets. The `prepare` command will also document event-to-label conversion and unknown-user/item policies.
+**RetailRocket**
+
+```bash
+python -m scripts.prepare_data \
+  --dataset retailrocket \
+  --max-rows 10000 \
+  --validate-only
+```
+
+**Amazon Video Games**
+
+```bash
+python -m scripts.prepare_data \
+  --dataset amazon-video-games \
+  --max-rows 10000 \
+  --validate-only
+```
+
+The `--validate-only` option generates a validation report in the terminal without exporting processed datasets.
+
+The `--max-rows` option reads the first N records from each source file. Researchers use this option for pipeline verification rather than representative statistical sampling.
+
+All three datasets successfully passed preliminary validation using 10,000 interaction records per dataset.
+
+#### 3.2 — Full dataset validation and preparation
+
+After the preliminary checks, researchers process the complete datasets:
+
+```bash
+python -m scripts.prepare_data --dataset movielens-1m
+
+python -m scripts.prepare_data --dataset retailrocket
+
+python -m scripts.prepare_data --dataset amazon-video-games
+```
+
+These commands validate the loaded events and export standardized interactions to Parquet.
+
+The processing pipeline retains original event records and keeps source-specific metadata separate from the canonical interaction representation.
+
+#### 3.3 — Validation results
+
+The implemented pipeline has been executed successfully against all three datasets.
+
+| Dataset | Processed interactions | Validation |
+|---|---:|---|
+| MovieLens 1M | Full dataset processed | Passed |
+| RetailRocket | 2,756,101 | Passed |
+| Amazon Video Games | 814,586 | Passed |
+
+The complete RetailRocket dataset contains:
+
+- **1,407,580 users** and **235,061 items**.
+- **2,664,312 views**, **69,332 cart additions**, and **22,457 transactions**.
+- **610,922 repeated user–item interactions**, reflecting multiple behavioral events involving the same pairs.
+- **460 potentially duplicated event observations**, reported without automatic removal.
+- No missing or invalid timestamps detected by the validation pipeline.
+
+The complete Amazon Video Games dataset contains:
+
+- **94,762 users** and **25,612 items**.
+- **814,586 explicit ratings**.
+- No repeated user–item pairs or duplicated event observations detected.
+- No missing or invalid timestamps detected by the validation pipeline.
+
+The MovieLens 1M dataset also completed full preparation successfully.
+
+**Interpretation:** These results confirm the execution of the ingestion and validation pipeline. They do not establish that the datasets are free from selection bias, temporal leakage, or other methodological limitations that must be addressed during modeling.
+
+#### 3.4 — Generated artifacts
+
+Successful preparation produces the following files:
+
+```text
+data/processed/
+├── movielens-1m/
+│   ├── events.parquet
+│   ├── movies.parquet
+│   ├── users.parquet
+│   └── validation.json
+│
+├── retailrocket/
+│   ├── events.parquet
+│   ├── categories.parquet
+│   └── validation.json
+│
+└── amazon-video-games/
+    ├── events.parquet
+    └── validation.json
+```
+
+The standardized event files contain:
+
+- Canonical user and item identifiers.
+- UTC timestamps.
+- Dataset-specific interaction types.
+- Explicit feedback values where applicable.
+- Original attributes preserved with `raw_` prefixes.
+- Source-row identifiers for traceability.
+
+The `validation.json` reports document dataset dimensions, event distributions, temporal coverage, interaction sparsity, potentially duplicated observations, and validation warnings.
+
+RetailRocket item-property snapshots and the Amazon product metadata catalog remain in their original locations. The current implementation inspects metadata samples but does not export them as complete standardized catalogs.
+
+#### 3.5 — Automated testing
+
+Researchers verify the ingestion components using synthetic fixtures and the pytest test suite:
+
+```bash
+python -m pytest tests/ -v
+```
+
+The tests cover:
+
+1. MovieLens ratings and metadata preservation.
+2. RetailRocket repeated-event preservation.
+3. Amazon product identifiers and compressed metadata.
+4. Detection of invalid timestamps.
+5. Explicit handling of legacy Amazon review schemas.
+6. Detection of missing user identifiers.
+7. Rejection of Amazon metadata records without product identifiers.
+
+**Verified result:** `7 passed` using Python 3.12.9 and pytest 9.2.0 on macOS.
+
+These tests confirm the covered ingestion behaviors without requiring external datasets. Full-scale validation complements these unit tests but does not replace further tests of preprocessing, temporal splitting, and recommendation algorithms.
+
+#### 3.6 — Scope and next steps
+
+The current implementation establishes the data ingestion and validation foundation.
+
+Researchers will subsequently extend the workflow with:
+
+- Exploratory data analysis and dataset characterization.
+- Explicit and implicit feedback preprocessing.
+- Chronological train/validation/test splitting.
+- Cold-start and unknown-user/item policies.
+- Candidate retrieval and supervised ranking.
+- Statistical evaluation and model comparison.
+
+**Current milestone:** Data Loading & Validation — completed and tested.
+
+The following steps will build on the validated Parquet datasets without modifying the original sources.
+
+
 
 ### Step 4 — Perform exploratory data analysis · planned
 
@@ -291,10 +474,3 @@ recsys-ranking-benchmark/
 └── artifacts/                  # trained models and feature schemas
 ```
 
-## ◆ Data sources and attribution
-
-- **MovieLens 1M:** GroupLens Research, University of Minnesota. [Dataset and usage terms](https://grouplens.org/datasets/movielens/1m/). See Harper and Konstan, *The MovieLens Datasets: History and Context*, ACM TiiS (2015).
-- **RetailRocket:** anonymized e-commerce behavior dataset published by RetailRocket on [Kaggle](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset). Follow the publisher's distribution terms.
-- **Amazon Reviews 2023:** McAuley Lab. [Official documentation, data processing, and citation](https://amazon-reviews-2023.github.io/main.html). See Hou et al., *Bridging Language and Items for Retrieval and Recommendation* (2024).
-
-**Data ethics and reproducibility:** data publishers retain their own terms; this repository will distribute **source code and reproducible instructions**, not third-party raw datasets. Results, when available, will identify exact source versions, filtering, split boundaries, seeds, hardware, and package versions.
