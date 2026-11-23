@@ -213,7 +213,7 @@ data/
 
 **Sources:** [MovieLens 1M](https://grouplens.org/datasets/movielens/1m/) · [RetailRocket](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset) · [Amazon Reviews '23: 5-core](https://amazon-reviews-2023.github.io/data_processing/5core.html) and [item metadata](https://amazon-reviews-2023.github.io/main.html).
 
-File names and paths will be validated by dataset adapters. For Amazon, keep the original rating-only file and optional metadata files distinct; do not combine them manually. **Raw datasets should not be committed to GitHub.** Review each publisher's terms before use or redistribution.
+File names and paths will be validated by dataset adapters. For Amazon, keep the original rating-only file and optional metadata files distinct; do not combine them manually. 
 
 ### Step 3 — Validate and prepare a dataset · planned
 
