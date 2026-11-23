@@ -91,7 +91,7 @@ The datasets are intentionally different. We will **compare models within each d
 - **RetailRocket:** a view, an add-to-cart event, and a purchase represent different types of behavior. We will avoid collapsing them into one target without explicitly describing the task and its biases. Very short histories will be analyzed separately.
 - **Amazon 5-core:** prefiltering users/items with at least five interactions changes the population and makes the benchmark more warm-start-friendly. We will disclose that selection bias. Metadata must be joined by valid product identifiers and treated consistently with time availability.
 
-**Local development fixtures.** Small synthetic or sample files (for example, `interactions_tiny.csv` and `interactions_sample.csv`) can be used for unit tests and debugging once their schema and provenance are checked. They will **not** be presented as evidence of recommendation quality.
+**Local development fixtures.** Small synthetic or sample files (for example, `interactions_tiny.csv` and `interactions_sample.csv`) will be used for unit tests and debugging once their schema and provenance are checked. They are **not** be presented as evidence of recommendation quality.
 
 ## ◆ Study design
 
