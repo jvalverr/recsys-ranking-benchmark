@@ -207,6 +207,7 @@ Desktop.ini
 /data/processed/
 /data/cache/
 /data/tmp/
+/data/fixtures/
 
 # Small synthetic test fixtures remain versionable under
 # tests/fixtures/ to support automated reproducibility.
