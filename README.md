@@ -611,6 +611,18 @@ The tests verify:
 
 
 
+### 4.8 — Exploratory findings
+
+The three datasets have been analyzed to characterize feedback distributions, user/item activity, temporal behavior, and cold-start exposure.
+
+The results reveal distinct modeling challenges: MovieLens emphasizes explicit preferences and new-user exposure under chronological evaluation; RetailRocket exhibits highly sparse histories and predominantly implicit feedback; and Amazon Video Games presents concentrated high ratings and substantial new-item exposure.
+
+These findings provide the empirical foundation for subsequent preprocessing, retrieval, and learning-to-rank experiments.
+
+**[Explore the complete EDA report →](reports/eda/README.md)**
+
+
+
 
 ### Step 5 — Prepare modeling data and retrieval baselines · planned
 
