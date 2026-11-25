@@ -1,0 +1,27 @@
+# They apply the same chronological fractions across all datasets.
+[defaults]
+train_fraction = 0.70
+validation_fraction = 0.15
+
+min_train_user_events = 1
+min_train_item_events = 1
+
+
+[movielens-1m]
+rating_positive_threshold = 4.0
+
+# If necessary, you can replace time quantiles with dataset-specific UTC boundaries.
+# Both fields must be specified together.
+# train_end_utc = "2000-10-01T00:00:00+00:00"
+# validation_end_utc = "2000-11-01T00:00:00+00:00"
+
+
+[retailrocket]
+implicit_target = "any_event"
+
+# Alternative: "transaction_only"
+# Other observed events remain unlabeled rather than negative.
+
+
+[amazon-video-games]
+rating_positive_threshold = 4.0

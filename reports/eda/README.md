@@ -363,7 +363,7 @@ The same diagnostic definition is applied to the three datasets, but the actual 
 
 ---
 
-## ◆ Limitations and next steps
+## ◆ Limitations
 
 The exploratory findings support experimental design, but they do not establish the effectiveness of any recommendation algorithm.
 
@@ -375,17 +375,6 @@ Several limitations remain:
 4. **Metadata availability:** RetailRocket item properties require time-aware joins, while Amazon product attributes require validated identifiers and availability assumptions.
 5. **Dataset provenance:** The Amazon 5-core filtering procedure requires independent provenance verification.
 
-### Next implementation stage
-
-The subsequent preprocessing and temporal-splitting stage will use these findings to define:
-
-- Dataset-specific feedback and relevance policies.
-- Chronological train, validation, and test windows.
-- User/item eligibility and unknown-identifier policies.
-- Leakage prevention for historical features and metadata.
-- Evaluation populations for warm and cold-start segments.
-
-These decisions will be documented before candidate retrieval and supervised ranking models are trained.
 
 ---
 

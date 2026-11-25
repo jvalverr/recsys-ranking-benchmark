@@ -30,3 +30,16 @@ def write_json(
     )
 
 
+
+
+
+def sql_literal(value: str | Path) -> str:
+    """
+    Users safely represent local paths as SQL string literals
+    when constructing DuckDB COPY statements.
+    """
+
+    # They escape embedded apostrophes to prevent malformed
+    # SQL when project directories contain special characters.
+    return "'" + str(value).replace("'", "''") + "'"
+

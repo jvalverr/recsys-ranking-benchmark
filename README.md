@@ -624,20 +624,102 @@ These findings provide the empirical foundation for subsequent preprocessing, re
 
 
 
-### Step 5 — Prepare modeling data and retrieval baselines · planned
+### Step 5 — Preprocess feedback and create temporal splits · implemented
 
-The next implementation stage will transform standardized event data into modeling-ready datasets.
+The modeling preparation stage transforms validated interaction events into chronological training, validation, and test datasets.
 
-It will introduce:
+Users execute the workflow using the shared configuration file and dataset-specific preprocessing policies.
 
-- Explicit and implicit feedback policies.
-- Chronological train/validation/test partitioning.
-- Prevention of temporal information leakage.
-- Unknown-user/item handling.
-- Popularity and item–item kNN baselines.
-- Candidate-generation and coverage diagnostics.
+#### 5.1 — Modeling configuration
 
-The final CLI commands for this stage will be documented when the corresponding modules are implemented and tested.
+The configuration file `configs/modeling.toml` defines:
+
+- Global chronological split fractions.
+- Optional explicit UTC cutoff timestamps.
+- Minimum training interaction counts for users and items.
+- Positive-rating thresholds for explicit feedback.
+- Target definitions for implicit feedback.
+
+By default, the workflow requests a 70% / 15% / 15% chronological partition.
+
+Actual proportions may differ because events with identical timestamps remain in the same evaluation window.
+
+#### 5.2 — Dataset-specific feedback
+
+The preprocessing routines preserve source interactions and apply the following definitions:
+
+| Dataset | Default target |
+|:---|:---|
+| MovieLens 1M | Ratings ≥ 4 are considered relevant |
+| RetailRocket | Any observed behavioral event is a positive interaction |
+| Amazon Video Games | Ratings ≥ 4 are considered relevant |
+
+For RetailRocket, users may alternatively select `transaction_only`, in which case transactions are positive and other observed events remain unlabeled.
+
+These definitions establish experimental labels rather than universal measures of user preference.
+
+#### 5.3 — Execute chronological preparation
+
+Users prepare the datasets through the following commands:
+
+```bash
+python -m scripts.prepare_modeling --dataset movielens-1m
+
+python -m scripts.prepare_modeling --dataset retailrocket
+
+python -m scripts.prepare_modeling --dataset amazon-video-games
+```
+
+They can repeat a completed preparation using the `--overwrite` argument.
+
+#### 5.4 — Modeling outputs
+
+Each dataset produces:
+
+```text
+data/processed/<dataset>/modeling/
+├── train.parquet
+├── validation.parquet
+├── test.parquet
+├── train_user_counts.parquet
+├── train_item_counts.parquet
+└── manifest.json
+```
+
+The manifest records the applied configurations, source-file identity, effective temporal boundaries, interaction counts, filtering decisions, feedback labels, and cold-start diagnostics.
+
+The workflow preserves original source files and does not remove repeated interactions automatically.
+
+#### 5.5 — Leakage prevention and cold-start handling
+
+The processing routines follow several methodological constraints:
+
+1. They create globally chronological, non-overlapping evaluation windows.
+2. They assign identical timestamps to the same partition.
+3. They apply minimum-support filters exclusively to training data.
+4. They retain previously unseen users and items in validation and test.
+5. They distinguish identifiers known to the fitted model from identifiers available at the beginning of each evaluation window.
+6. They avoid joining future metadata or generating negative samples during preprocessing.
+
+The cold-start annotations provide evaluation diagnostics. They do not imply that the recommendation model has been updated with interactions from validation or test.
+
+#### 5.6 — Verification
+
+Users execute the automated test suite:
+
+```bash
+python -m pytest tests/ -v
+```
+
+The tests cover chronological separation, label construction, train-only filtering, repeated timestamps, cold-start classification, configuration validation, and output protection.
+
+This stage prepares the foundation for candidate retrieval and learning-to-rank experiments. It does not train predictive models or report recommendation-quality metrics.
+
+
+
+
+
+
 
 ### Step 6 — Train and compare ranking models · planned
 
