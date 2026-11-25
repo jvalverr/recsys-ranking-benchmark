@@ -265,7 +265,7 @@ The following steps document how users can reproduce the current analyses and, a
 
 **Implementation status:** Steps 1–4 are implemented. Steps 5–7 describe the planned model development and evaluation workflow.
 
-### Step 1 — Create the Python environment · implemented and tested
+### Step 1 — Create the Python environment 
 
 **Requirements:** Python 3.11+ and sufficient local memory for the selected dataset.
 
@@ -306,7 +306,7 @@ After registration, users select **Python (Recsys Benchmark)** in JupyterLab.
 
 This configuration avoids inconsistencies caused by different Python installations or virtual environments.
 
-### Step 2 — Obtain and organize the datasets · implemented and verified
+### Step 2 — Obtain and organize the datasets 
 
 Users obtain the datasets from the original publishers linked in the [Datasets](#datasets) section.
 
@@ -346,7 +346,7 @@ The adapters do not remove repeated interactions, assign relevance labels, or jo
 
 **Data management:** Original datasets remain unchanged and are excluded from version control. Generated data are stored separately under `data/processed/`.
 
-### Step 3 — Validate and prepare the datasets · implemented and tested
+### Step 3 — Validate and prepare the datasets 
 
 The preparation pipeline includes dataset-specific loaders, schema validation, descriptive statistics, and Parquet export.
 
@@ -461,7 +461,7 @@ The JSON reports document:
 
 Time-dependent RetailRocket item properties and the full Amazon metadata catalog remain separate for subsequent feature engineering.
 
-### Step 4 — Perform exploratory data analysis · implemented and executed
+### Step 4 — Perform exploratory data analysis 
 
 The Exploratory Data Analysis stage characterizes the datasets before defining relevance targets, temporal splits, retrieval strategies, or ranking models.
 
@@ -611,7 +611,7 @@ The tests verify:
 
 
 
-### 4.8 — Exploratory findings
+#### 4.8 — Exploratory findings
 
 The three datasets have been analyzed to characterize feedback distributions, user/item activity, temporal behavior, and cold-start exposure.
 
@@ -624,7 +624,7 @@ These findings provide the empirical foundation for subsequent preprocessing, re
 
 
 
-### Step 5 — Preprocess feedback and create temporal splits · implemented
+### Step 5 — Preprocess feedback and create temporal splits
 
 The modeling preparation stage transforms validated interaction events into chronological training, validation, and test datasets.
 
@@ -721,20 +721,105 @@ This stage prepares the foundation for candidate retrieval and learning-to-rank 
 
 
 
-### Step 6 — Train and compare ranking models · planned
 
-The ranking stage will compare pointwise scoring methods with ranking-aware objectives.
+### Step 6 — Retrieval and Candidate Generation 
 
-It will include:
+The retrieval stage introduces reproducible popularity-based and collaborative filtering baselines.
 
-- Feature engineering and temporal feature availability.
-- Logistic Regression and gradient-boosted classifiers.
-- LightGBM LambdaMART.
-- Equivalent candidate pools for controlled comparisons.
-- Validation-based hyperparameter selection.
-- Feature ablation and error analysis.
+They construct candidate sets from positive historical interactions, maintain a frozen training catalog, and evaluate retrieval quality using chronological validation data.
 
-Model evaluation will use a final test set that remains separate from model selection.
+#### 6.1 — Retrieval methods
+
+The pipeline implements three complementary strategies:
+
+| Method | Role |
+|:---|:---|
+| Popularity | Non-personalized baseline and cold-user fallback |
+| Item–Item kNN | Personalized collaborative candidate retrieval |
+| Reciprocal Rank Fusion | Combination of candidate lists without direct score-scale assumptions |
+
+They estimate popularity from distinct positive training users and construct item similarities using sparse user-item interactions, cosine normalization, and co-occurrence shrinkage.
+
+The implementation limits the number of positive interactions per user during similarity construction and records the resulting computational cost.
+
+#### 6.2 — Fit retrieval indexes
+
+Users fit the retrieval methods independently for each dataset:
+
+```bash
+python -m scripts.run_retrieval fit --dataset movielens-1m
+python -m scripts.run_retrieval fit --dataset retailrocket
+python -m scripts.run_retrieval fit --dataset amazon-video-games
+```
+
+The fitted indexes are stored under `artifacts/retrieval/<dataset>/`.
+
+Training uses observed-positive interactions from `modeling/train.parquet` exclusively.
+
+#### 6.3 — Evaluate candidate generation
+
+Users evaluate the fitted models on chronological validation windows:
+
+```bash
+python -m scripts.run_retrieval evaluate \
+  --dataset movielens-1m \
+  --split validation \
+  --max-users 1000
+```
+
+Equivalent commands are available for the other datasets.
+
+The default evaluation samples up to 1,000 distinct users with observed-positive targets. They record the sample size and the total population of users eligible for sampling.
+
+#### 6.4 — Evaluation metrics
+
+The evaluation reports:
+
+- Candidate Recall, including micro- and macro-averaged results.
+- Candidate Recall conditional on catalog and item eligibility.
+- NDCG@K, Recall@K, MAP@K, and observed-hit Precision@K.
+- Training-catalog target coverage.
+- Retrieval performance for users present or absent from fitted training.
+- Candidate-pool sizes.
+- In-process P50/P95 candidate-generation latency.
+- Model fitting time and sparse neighbor-graph statistics.
+
+They report cold-item limitations explicitly rather than removing unavailable targets from the primary recall denominator.
+
+#### 6.5 — Generated artifacts
+
+Each dataset produces:
+
+```text
+artifacts/retrieval/<dataset>/
+├── catalog.json
+├── neighbors.npz
+├── index.json
+└── fit_manifest.json
+
+data/processed/<dataset>/retrieval/validation/
+├── candidates.parquet
+├── user_metrics.parquet
+└── summary.json
+```
+
+The candidate artifacts preserve retrieval scores and provenance without storing future relevance labels alongside candidate features.
+
+#### 6.6 — Methodological limitations
+
+The experiments adopt a static window-start evaluation policy.
+
+They fit retrieval models exclusively on training interactions while allowing user histories to include events available before the evaluated window.
+
+They evaluate observed-positive interactions rather than counterfactual outcomes.
+
+Therefore, offline improvements cannot be interpreted directly as increases in CTR, purchases, or other business metrics.
+
+The generated candidate lists establish the basis for subsequent learning-to-rank experiments. A separate inner chronological training protocol will be required to construct supervised ranking examples without contaminating validation or test data.
+
+
+
+
 
 ### Step 7 — Reproduce the complete benchmark · planned
 

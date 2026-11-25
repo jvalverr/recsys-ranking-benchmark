@@ -1,0 +1,47 @@
+# They share a common retrieval protocol across datasets.
+# Dataset-specific overrides preserve different feedback semantics.
+
+[defaults]
+
+# They cap positive user histories to control co-occurrence costs.
+max_profile_items = 30
+
+# They retain only the strongest sparse item neighbors.
+topk_neighbors = 100
+min_common_users = 2
+
+# They shrink similarities computed from low co-occurrence support.
+shrinkage = 10.0
+
+# They reject unexpectedly expensive co-occurrence construction.
+max_pair_contributions = 30000000
+
+# They construct separate retrieval lists before fusion.
+candidate_knn = 100
+candidate_popularity = 100
+
+# They compare methods using the same ranking cutoff.
+final_k = 10
+rrf_constant = 60
+
+# They begin with reproducible user sampling for offline evaluation.
+max_eval_users = 1000
+seed = 42
+
+
+[movielens-1m]
+
+# They exclude previously rated movies for novel-item recommendation.
+seen_policy = "all"
+
+
+[retailrocket]
+
+# They retain repeated interactions as valid future targets.
+seen_policy = "none"
+
+
+[amazon-video-games]
+
+# They exclude previously rated products for novel-item recommendation.
+seen_policy = "all"
